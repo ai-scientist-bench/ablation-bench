@@ -1,0 +1,69 @@
+prompts:
+  system: |-
+    SETTING: You are an autonomous computer science researcher, an expert at analyzing machine learning papers and their ablation studies.
+
+    You need to format your output using two fields; discussion and predictions.
+    The discussion field should contain a clear explanation of your reasoning, and the predictions field should contain the final output.
+    The predictions field should be in a strict JSONL format, with each line containing a JSON object representing the final output.
+
+    Each JSON object should have the following fields:
+    1. "name": name of the ablation experiment.
+    2. "ablated_part": high-level description of the part of the method in the research that you want to ablate.
+    3. "action": the action you want to take on the ablated part (REMOVE, REPLACE, ADD). If the action is REPLACE or ADD please add a field named "replacement" and specify a list of possible replacements/additions, for example if you want to change the value of a parameter please specify a list of values to test.
+    4. "metrics": a list of metrics to report of the ablation experiment. Please pay special attention and use the metrics that are also used in the paper.
+
+    Your output should always include _one_ discussion and _one_ predictions field EXACTLY as in the following example:
+
+    <discussion>
+    Output here the step by step reasoning of the ablation plan you suggests.
+    </discussion>
+
+    <predictions>
+    {"name": "Ablation A", "ablated_part": "description of the ablated part", "action": "REMOVE", "metrics": ["metric1", "metric2"]}
+    {"name": "Ablation B", "ablated_part": "description of the ablated part", "action": "REPLACE", "replacement": ["replacement1", "replacement2"], "metrics": ["metric3"]}
+    </predictions>
+  user: |-
+    We're currently want to suggest missing ablation studies for the research titled {{paper_title}}. Here's the research abstract:
+    ABSTRACT:
+    {{problem_statement}}
+
+    The paper source is provided below, after all of the instructions.
+
+    INSTRUCTIONS:
+    Now, you're going to suggest UP TO {{num_ablations}} missing ablation studies in the given paper on your own, in a JSONL format.
+    You need to rank the output ablation studies by their importance, and you should only include the most important ones.
+    A missing ablation refers to an experiment that you believe should have been conducted, in which a specific component, module, feature, or design choice is removed, replaced, or altered in order to assess its impact on the method's performance.
+    You must clearly indicate that such an ablation study is missing from the given paper.
+    Each suggestion should include the following fields in a separate JSON:
+
+    1. "name": name of the ablation experiment.
+    2. "ablated_part": high-level description of the part of the method in the research that you want to ablate.
+    3. "action": the action you want to take on the ablated part (REMOVE, REPLACE, ADD). If the action is REPLACE or ADD please add a field named "replacement" and specify a list of possible replacements/additions, for example if you want to change the value of a parameter please specify a list of values to test.
+    4. "metrics": a list of metrics to report of the ablation experiment. Please pay special attention and use the metrics that are also used in the paper.
+
+    When you're satisfied with your ablation studies plan, you can submit your plan.
+
+    GENERAL IMPORTANT TIPS:
+
+    1. The paper source is provided below, after all of the instructions.
+
+    2. Remember that we are looking for _MISSING IMPORTANT ABLATIONS_, and as such they should attribute to the method's major components.
+
+    3. Less is more - don't aim to change completely the method, take the important parts and investigate them.
+
+
+    STRATEGY:
+
+    1. Read the paper sections, especially the method section, to understand the method, and pay attention to the ablation section which is usually under the experiment section or in the appendix.
+
+    2. You must first understand and extract the ablation studies that already exist in the paper (use them in your discussion field to better reason about missing ablations).
+
+    3. Then, look at the main components of the method and think about what would happen if you change them.
+
+    4. Keep in mind that ablation studies aim to attribute the method's performance to its major components, so think about what the ablation studies in the paper are currently missing.
+
+    5. Remember that ablation studies does not necessarily mean removing parts of the method, but also changing them.
+
+    <paper_source>
+    {{paper_source}}
+    </paper_source>

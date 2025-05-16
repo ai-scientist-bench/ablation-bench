@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import sys
+import io
+import json
+
+from registry import registry
+
+
+def create_final_score_jsonl() -> None:
+    ablations = []
+    for line in registry.get("PROBLEM_STATEMENT").split("\n"):
+        if line.strip() != "":
+            ablations.append(json.loads(line))
+    final_score = []
+    for ablation in ablations:
+        final_score.append(
+            {
+                "name_in_plan": ablation["name"],
+                "appears_in_review": False,
+            }
+        )
+    Path("/repo/final_score.jsonl").write_text("\n".join(json.dumps(score) for score in final_score))
+
+
+if __name__ == "__main__":
+    # There are some super strange "ascii can't decode x" errors when printing to the terminal
+    # that can be solved with setting the default encoding for stdout
+    # (note that python3.6 doesn't have the reconfigure method)
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    create_final_score_jsonl()

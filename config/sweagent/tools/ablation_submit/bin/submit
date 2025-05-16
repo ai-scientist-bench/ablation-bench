@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import sys
+import os
+import io
+import json
+
+from registry import registry
+
+
+def validate_submission(plan: str) -> None:
+    for line in plan.splitlines():
+        if line.strip() != "":
+            try:
+                json.loads(line)
+            except json.JSONDecodeError as ex:
+                print(f"Invalid JSON line: {line} Error: {ex}.\n\nPlease change the format of your submission file to contain exactly one valid JSON at each line")
+                sys.exit(1)
+
+
+def main() -> None:
+    repo_root = registry.get("ROOT", os.getenv("ROOT"))
+    assert repo_root
+
+    patch_path = Path("/root/model.patch")
+
+    ablations_plan_path = Path(registry.get("ABLATIONS_PLAN_PATH"))
+    if not ablations_plan_path.is_file():
+        print(f"Please place your submission in `{ablations_plan_path}`. Other paths are not allowed.")
+        sys.exit(1)
+
+    plan = ablations_plan_path.read_text(encoding="utf-8", errors="backslashreplace")
+    validate_submission(plan)
+    patch_path.write_text(plan)
+
+    print("<<SWE_AGENT_SUBMISSION>>")
+    print(plan)
+    print("<<SWE_AGENT_SUBMISSION>>")
+
+
+if __name__ == "__main__":
+    # There are some super strange "ascii can't decode x" errors when printing to the terminal
+    # that can be solved with setting the default encoding for stdout
+    # (note that python3.6 doesn't have the reconfigure method)
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    main()

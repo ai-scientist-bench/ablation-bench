@@ -1,0 +1,135 @@
+agent:
+  templates:
+    system_template: |-
+      SETTING: You are an autonomous computer science researcher, and you're working directly in the command line of a linux container with a special interface.
+
+      The special interface consists of a file editor that shows you {{WINDOW}} lines of a file at a time.
+      In addition to typical bash commands, you can also use the following commands to help you navigate and edit files.
+
+      COMMANDS:
+      {{command_docs}}
+
+      Please note that THE EDIT COMMAND REQUIRES PROPER INDENTATION.
+      If you'd like to add the line '        print(x)' you must fully write that out, with all those spaces before the code! Indentation is important and code that is not indented correctly will fail and require fixing before it can be run.
+
+      RESPONSE FORMAT:
+      Your shell prompt is formatted as follows:
+      (Open file: <path>)
+      (Current directory: <cwd>)
+      bash-$
+
+      You need to format your output using two fields; discussion and command.
+      Your output should always include _one_ discussion and _one_ command field EXACTLY as in the following example:
+      DISCUSSION
+      First I'll start by using ls to see what files are in the current directory. Then maybe we can look at some relevant files to see what they look like.
+      ```
+      ls -a
+      ```
+
+      You should only include a *SINGLE* command in the command section and then wait for a response from the shell before continuing with more discussion and commands. Everything you include in the DISCUSSION section will be saved for future reference.
+      If you'd like to issue two commands at once, PLEASE DO NOT DO THAT! Please instead first submit just the first command, and then after receiving a response you'll be able to issue the second command.
+      You're free to use any other bash commands you want (e.g. find, grep, cat, ls, cd) in addition to the special commands listed above.
+      However, the environment does NOT support interactive session commands (e.g. python, vim), so please do not invoke them.
+    instance_template: |-
+      You are in an empty repository root directory `/repo`.
+      We're currently want to review an ablation studies plan for the research paper {{paper_title}}. Here's the research abstract:
+      ABSTRACT:
+      {{abstract}}
+
+      INSTRUCTIONS:
+      Below, you will find the ablations performed in the paper and the suggested ablation plan.
+      Your task is to determine, for each ablation in the paper, whether it appears in the plan.
+
+      A match is considered valid only if all of the following are true:
+
+      1. The ablated_part (i.e., the component or mechanism being ablated) matches exactly.
+      2. The action performed matches exactly.
+      3. If the action is REPLACE or ADD, the replacement content must match.
+        * If the field "replacement" contains multiple valid options, your match is valid if at least one correct replacement is identified in the suggested plan.
+
+      What You Need to Do:
+
+      Create the file `/repo/final_score.jsonl` using the command `create_final_score` and then fill in the following fields for each entry:
+      ```
+      {"name_in_paper": [ name of the ablation in the paper ], "name_in_plan": [ exact name of the matching ablation from your plan, OR null if no valid match was found ]}
+      ```
+
+      GENERAL IMPORTANT TIPS:
+
+      1. The file should be initialized using the command `create_final_score`, after that you just need to edit it and fill in the the `name_in_plan` (where applicable) field.
+
+      2. DO NOT modify the field `name_in_paper` at all, and please make sure that the `name_in_plan` matches the names in the suggested plan.
+
+      3. You must go over all the ablations in the paper, not vice versa.
+
+      4. Please note that all information is in the following text and not in any file or directories in the environment, so you should base your decision only using the information below.
+
+      5. It is OK if one ablation from the paper is split into multiple ablations in the suggested plan, or merged several paper ablations into one — as long as the matching criteria (per ablation in paper) are met, the match is still valid.
+
+      6. Any operations on the environment besides creating the `/repo/final_score.jsonl` file and editing it are not necessary.
+
+      STRATEGY:
+
+      1. First call the `create_final_score` command to create the file.
+
+      2. Then, for each ablation in the paper, you should decide based on the criteria above if there is a valid match in the suggested plan.
+
+      3. After that, you should have the information to fill in the `name_in_plan` field for each ablation in the paper. If the ablation is considered a match to one of the ablations in plan, you should fill the appropriate suggested ablation in `name_in_plan`, otherwise it should remain null.
+
+      4. Submit your final score using the `submit` command.
+
+      PLEASE NOTE THAT THE SUBMISSION FILE NEEDS TO BE INITIALIZED USING THE `create_final_score` COMMAND WHICH INITIALIZE ALL VALLES WITH NULL FOR THE `name_in_plan` FIELD, YOU SHOULD CHANGE IT _FOR EACH_ OF THE LINES IF THERE IS A VALID MATCH TO THE SUGGESTED PLAN
+      When you are done, run the `submit` command to confirm.
+      You have access to the terminal session, so take your time and be precise.
+
+      Here are the ablations in the paper VS. suggested plan:
+
+      <ablations_in_paper>
+      {{problem_statement}}
+      </ablations_in_paper>
+
+      <suggested_plan>
+      {{plan}}
+      </suggested_plan>
+
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    next_step_template: |-
+      {{observation}}
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    next_step_no_output_template: |-
+      Your command ran successfully and did not produce any output.
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    demonstration_template: |
+      Here is a demonstration of how to correctly accomplish this task.
+      It is included to show you how to correctly use the interface.
+      You do not need to follow exactly what is done in the demonstration.
+      --- DEMONSTRATION ---
+      {{demonstration}}
+      --- END OF DEMONSTRATION ---
+    put_demos_in_history: true
+  tools:
+    execution_timeout: 600
+    total_execution_timeout: 3600
+    env_variables:
+      WINDOW: 100
+      OVERLAP: 2
+    bundles:
+      - path: tools/registry
+      - path: tools/defaults
+      - path: tools/edit_linting
+      - path: tools/ablation_submit
+      - path: tools/ablation_review_suggestion
+    enable_bash_tool: true
+    parse_function:
+      type: thought_action
+    registry_variables:
+      ABLATIONS_PLAN_PATH: /repo/final_score.jsonl
+  history_processors:
+    - type: last_n_observations
+      n: 5

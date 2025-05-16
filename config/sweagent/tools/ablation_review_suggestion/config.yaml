@@ -1,0 +1,4 @@
+tools:
+  create_final_score:
+    signature: "create_final_score"
+    docstring: "create the /repo/final_score.jsonl file for submission"
