@@ -14,6 +14,7 @@ AblationBench is a comprehensive benchmarking tool designed to evaluate and faci
     ```bash
     git clone https://github.com/ai-scientist-bench/ablation-bench.git
     cd ablation-bench
+    git checkout neurips_submission
     git lfs fetch --all
     git lfs pull
     ```
