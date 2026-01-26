@@ -9,9 +9,6 @@ description = "A benchmarking tool for model ablation studies"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
-authors = [
-    {name = "Talor Abramovich", email = "talora1@mail.tau.ac.il"},
-]
 
 classifiers = [
     "Development Status :: 3 - Alpha",

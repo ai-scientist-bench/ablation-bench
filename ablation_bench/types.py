@@ -202,15 +202,15 @@ class EvaluationResult(BaseModel):
 class DatasetForEvaluation(str, Enum):
     """Enumeration of dataset identifiers for evaluation purposes.
 
-    These typically point to Hugging Face Hub dataset names.
+    These typically point to local dataset paths.
 
     Attributes:
         ReviewerAssist: Dataset for the ReviewerAssist benchmark.
         ResearcherAssist: Dataset for the ResearcherAssist benchmark.
     """
 
-    ReviewerAssist = "ai-coscientist/reviewer-ablation-bench"
-    ResearcherAssist = "ai-coscientist/researcher-ablation-bench"
+    ReviewerAssist = "data/ai-coscientist/reviewer-ablation"
+    ResearcherAssist = "data/ai-coscientist/author-ablation"
 
 
 class DatasetSplit(str, Enum):
@@ -229,8 +229,8 @@ class DatasetForJudgeEvaluation(str, Enum):
         ResearcherAssist: Dataset for judge evaluation in ResearcherAssist mode.
     """
 
-    ReviewerAssist = "ai-coscientist/reviewer-ablation-judge-eval"
-    ResearcherAssist = "ai-coscientist/researcher-ablation-judge-eval"
+    ReviewerAssist = "data/ai-coscientist/reviewer-eval"
+    ResearcherAssist = "data/ai-coscientist/author-eval"
 
 
 PredictedField: dict[DatasetForJudgeEvaluation, str] = {

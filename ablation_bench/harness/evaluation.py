@@ -27,7 +27,7 @@ class EvaluationSettings(BaseSettings):
         description="Name of the model used to evaluate (e.g., 'openai/gpt-4o'). Any LiteLLM supported model is valid."
     )
     dataset: DatasetForEvaluation = Field(
-        description="Name of the dataset in HuggingFace hub (e.g., 'tau/ablations-bench')"
+        description="Path to dataset for evaluation (e.g., 'data/ai-coscientist/reviewer-eval')"
     )
     split: DatasetSplit = Field(default="dev", description="Dataset split to use for evaluation (e.g., 'dev', 'test')")
     generated_plans_path: Path = Field(description="Path to the directory containing generated ablation plans")
@@ -83,9 +83,14 @@ class Evaluator:
         return self.judge
 
     def load_data(self) -> Dataset:
-        """Load dataset from Hugging Face."""
+        """Load dataset from local parquet files."""
         self.logger.info(f"Loading dataset {self.settings.dataset.value}, split {self.settings.split.value}")
-        self.dataset = load_dataset(self.settings.dataset.value, split=self.settings.split.value)
+        self.dataset = load_dataset(
+            "parquet", 
+            data_files={self.settings.split.value: f"{self.settings.dataset.value}/{self.settings.split.value}.parquet"}, 
+            split=self.settings.split.value
+        )
+        self.dataset.info.dataset_name = self.settings.dataset.value
         return self.dataset
 
     def run_evaluation(self) -> EvaluationResult:

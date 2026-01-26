@@ -106,7 +106,7 @@ history:
 replay_config:
   env:
     deployment:
-      image: talorabr/ablations-bench:judge
+      image: ablations-bench:judge
       port:
       docker_args:
         - -u
@@ -303,15 +303,15 @@ replay_config:
           radare2: \b(?:radare2)\b.*\s+-c\s+.*
           r2: \b(?:radare2)\b.*\s+-c\s+.*
       bundles:
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/registry
+        - path: ../SWE-agent/tools/registry
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/defaults
+        - path: ../SWE-agent/tools/defaults
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/edit_linting
+        - path: ../SWE-agent/tools/edit_linting
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/ablation_submit
+        - path: ../SWE-agent/tools/ablation_submit
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/ablation_review_suggestion
+        - path: ../SWE-agent/tools/ablation_review_suggestion
           hidden_tools: []
       env_variables:
         WINDOW: 100

@@ -1,5 +1,5 @@
 ARG NAME
-FROM talorabr/ablations-bench:${NAME}
+FROM ablations-bench:${NAME}
 
 ARG GITHUB_URL
 ARG COMMIT_SHA

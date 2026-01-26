@@ -124,7 +124,7 @@ agent:
       {{demonstration}}
       --- END OF DEMONSTRATION ---
     demonstrations:
-    - /home/lab/abramot1/ablations-bench/config/sweagent/demos/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures.demo.yaml
+    - ./config/sweagent/demos/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures.demo.yaml
   tools:
     execution_timeout: 600
     total_execution_timeout: 3600

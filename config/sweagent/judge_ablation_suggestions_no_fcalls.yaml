@@ -135,7 +135,7 @@ agent:
       {{demonstration}}
       --- END OF DEMONSTRATION ---
     demonstrations:
-    - /home/lab/abramot1/ablations-bench/config/sweagent/demos/HybrIK/HybrIK.demo.yaml
+    - ./config/sweagent/demos/HybrIK/HybrIK.demo.yaml
   tools:
     execution_timeout: 600
     total_execution_timeout: 3600

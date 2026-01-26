@@ -7,31 +7,22 @@ AblationBench is a comprehensive benchmarking tool designed to evaluate and faci
 
 1.  **Prerequisites**:
     *   Python 3.11 or higher.
-    *   `git-lfs` for cloning the repository data files.
     *   Docker (if using SWE-agent based planners or judges).
 
-2.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/ai-scientist-bench/ablation-bench.git
-    cd ablation-bench
-    git lfs fetch --all
-    git lfs pull
-    ```
-
-3.  **Create and activate a virtual environment (recommended)**:
+2.  **Create and activate a virtual environment (recommended)**:
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
     # On Windows: .venv\Scripts\activate
     ```
 
-4.  **Install the package and its dependencies**:
+3.  **Install the package and its dependencies**:
     ```bash
     pip install -e .
     ```
     This installs the package in editable mode. If you prefer a standard installation, use `pip install .`.
 
-5.  **(Optional) Install SWE-agent**:
+4.  **(Optional) Install SWE-agent**:
 
     If you wish to use the agent judge or planner, please install SWE-agent from source.
     You should clone the SWE-agent repository and run the installation:
@@ -47,14 +38,20 @@ AblationBench is a comprehensive benchmarking tool designed to evaluate and faci
     ```
     For further details about SWE-agent installation please refer to its [documentation](https://swe-agent.com/latest/).
 
+    You should build docker images using the provided script in docker/ folder, in order to be able to use the SWE-agent planner and judge:
+    
+    ```bash
+    cd docker/ && ./build_base_images.sh
+    ```
+
 ## 🤗 Datasets
 
-The benchmark utilizes datasets hosted on Hugging Face:
+The benchmark utilizes the following datasets:
 
-*   `ai-coscientist/researcher-ablation-bench`: For ablation planning and evaluation given paper's method section (author-assist mode).
-*   `ai-coscientist/reviewer-ablation-bench`: For tasks related to identifying missing ablations given a full paper (reviewer-assist mode).
-*   `ai-coscientist/researcher-ablation-judge-eval`: For evaluating the performance of different judges for the ReviewerAblationBench.
-*   `ai-coscientist/reviewer-ablation-judge-eval`: For evaluating the performance of different judges for the ResearcherAblationBench.
+*   `data/ai-coscientist/author-ablation`: For ablation planning and evaluation given paper's method section (author-assist mode).
+*   `data/ai-coscientist/reviewer-ablation`: For tasks related to identifying missing ablations given a full paper (reviewer-assist mode).
+*   `data/ai-coscientist/author-eval`: For evaluating the performance of different judges for the AuthorAblation.
+*   `data/ai-coscientist/reviewer-eval`: For evaluating the performance of different judges for the ReviewerAblation.
 
 
 ## ⚙️ Configuration
@@ -84,7 +81,7 @@ Planners and judges in AblationBench are configured using YAML files. You will n
 ## 🏃🏾 Quick Start
 
 
-### 👩‍🔬 ResearcherAblationBench
+### 👩‍🔬 AuthorAblation
 
 Here's a quick start example of how to generate an ablation plan using the LM-Planner, then evaluate it using the LMJudge:
 
@@ -95,12 +92,12 @@ Here's a quick start example of how to generate an ablation plan using the LM-Pl
         --planner simple_lm \
         --planner-config config/simple_lm/plan_ablations.yaml \
         --model-name "openrouter/openai/o3-mini-high" \
-        --dataset "ai-coscientist/researcher-ablation-bench" \
+        --dataset "data/ai-coscientist/author-ablation" \
         --split "test" \
         --num-ablations 5 \
-        --output-dir "./runs/plan/researcher/simple_lm/o3-mini-high"
+        --output-dir "./runs/plan/author/simple_lm/o3-mini-high"
     ```
-    This will generate ablation plans for all the papers in the test set of ResearcherAblationBench. Each plan will contain up to 5 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/researcher/simple_lm/o3-mini-high` directory.
+    This will generate ablation plans for all the papers in the test set of AuthorAblation. Each plan will contain up to 5 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/author/simple_lm/o3-mini-high` directory.
 
 2.  **Run the evaluation command**:
     ```bash
@@ -108,15 +105,15 @@ Here's a quick start example of how to generate an ablation plan using the LM-Pl
         --judge simple_lm \
         --judge-config config/simple_lm/judge_ablation_suggestions.yaml \
         --model-name "openrouter/openai/gpt-4o" \
-        --dataset "ai-coscientist/researcher-ablation-bench" \
+        --dataset "data/ai-coscientist/author-ablation" \
         --split "test" \
-        --generated-plans-path "./runs/researcher/plan/simple_lm/o3-mini-high" \
+        --generated-plans-path "./runs/author/plan/simple_lm/o3-mini-high" \
         --parallelism 5 \
-        --output-dir "./runs/eval/researcher/simple_lm/o3-mini-high"
+        --output-dir "./runs/eval/author/simple_lm/o3-mini-high"
     ```
-    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of ResearcherAblationBench. The command will save evaluation results to the `./runs/eval/researcher/simple_lm/o3-mini-high` directory, and print them to the screen as well.
+    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of AuthorAblation. The command will save evaluation results to the `./runs/eval/author/simple_lm/o3-mini-high` directory, and print them to the screen as well.
 
-### 🔍 ReviewerAblationBench
+### 🔍 ReviewerAblation
 
 Here's a quick start example of how to generate a missing ablation plan using the LM-Planner, then evaluate it using the LMJudge:
 
@@ -126,12 +123,12 @@ Here's a quick start example of how to generate a missing ablation plan using th
         --planner simple_lm \
         --planner-config config/simple_lm/plan_missing_ablations.yaml \
         --model-name "openrouter/openai/o3-mini-high" \
-        --dataset "ai-coscientist/reviewer-ablation-bench" \
+        --dataset "data/ai-coscientist/reviewer-ablation" \
         --split "test" \
         --num-ablations 2 \
         --output-dir "./runs/plan/reviewer/simple_lm/o3-mini-high"
     ```
-    This will generate ablation plans for all the papers in the test set of ReviewerAblationBench. Each plan will contain up to 2 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/reviewer/simple_lm/o3-mini-high` directory.
+    This will generate ablation plans for all the papers in the test set of ReviewerAblation. Each plan will contain up to 2 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/reviewer/simple_lm/o3-mini-high` directory.
 
 2.  **Run the evaluation command**:
     ```bash
@@ -139,13 +136,13 @@ Here's a quick start example of how to generate a missing ablation plan using th
         --judge simple_lm \
         --judge-config config/simple_lm/judge_missing_ablation_suggestions.yaml \
         --model-name "openrouter/anthropic/claude-3.5-sonnet" \
-        --dataset "ai-coscientist/reviewer-ablation-bench" \
+        --dataset "data/ai-coscientist/reviewer-ablation" \
         --split "test" \
         --generated-plans-path "./runs/plan/reviewer/simple_lm/o3-mini-high" \
         --parallelism 5 \
         --output-dir "./runs/eval/reviewer/simple_lm/o3-mini-high"
     ```
-    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of ResearcherAblationBench. The command will save evaluation results to the `./runs/eval/reviewer/simple_lm/o3-mini-high` directory, and print them to the screen as well.
+    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of AuthorAblation. The command will save evaluation results to the `./runs/eval/reviewer/simple_lm/o3-mini-high` directory, and print them to the screen as well.
 
 
 ## 🫀 Core Components
@@ -198,7 +195,7 @@ ablation-bench plan \
     --planner [planner_type] \
     --planner-config [path/to/your_planner_config.yaml] \
     --model-name "your_chosen_lm_identifier" \
-    --dataset [huggingface_dataset_name] \
+    --dataset [dataset_path] \
     --split [dataset_split] \
     --num-ablations [number_of_ablations_to_generate] \
     --parallelism [number_of_parallel_workers] \
@@ -208,7 +205,7 @@ ablation-bench plan \
 *   `planner_type`: `simple_lm` or `sweagent`.
 *   `planner_config`: Path to the YAML configuration for the chosen planner.
 *   `model_name`: Identifier for the LM to be used by the planner (e.g., "openai/gpt-4o", "anthropic/claude-3-opus-20240229"). See [LiteLLM documentation](https://docs.litellm.ai/docs/providers) for supported models.
-*   `dataset`: The Hugging Face dataset to use.
+*   `dataset`: The path to dataset to use.
 *   `split`: Dataset split (e.g., "dev", "test").
 *   `num_ablations` (optional): Target number of ablations to generate per paper (default: 5).
 *   `output_dir` (optional): Directory where generated plans and logs will be saved (summary in `plans.json` and individual `*.jsonl` files per paper) (default: `./runs/<datetime>`).
@@ -222,7 +219,7 @@ ablation-bench eval \
     --judge [judge_type] \
     --judge-config [path/to/your_judge_config.yaml] \
     --model-name "your_chosen_lm_for_judging" \
-    --dataset [huggingface_dataset_name] \
+    --dataset [dataset_path] \
     --split [dataset_split] \
     --generated-plans-path [path/to/directory_with_generated_plans] \
     --top-k [N] \
@@ -233,7 +230,7 @@ ablation-bench eval \
 *   `judge_type`: `simple_lm` or `sweagent`.
 *   `judge_config`: Path to the YAML configuration for the chosen judge.
 *   `model_name`: Identifier for the LM to be used by the judge.
-*   `dataset`: The Hugging Face dataset to use.
+*   `dataset`: The local path of dataset to use.
 *   `generated_plans_path`: Path to the directory containing the ablation plans generated by the `plan` command.
 *   `top_k` (optional): Evaluate only the top K suggestions from each plan.
 *   `output_dir` (optional): Directory where evaluation results (`evaluations.json` containing precision, recall, F1 scores per paper) will be saved (default: `./runs/<datetime>`).
@@ -244,11 +241,11 @@ Use the `ablation-bench eval-judge` command:
 
 ```bash
 ablation-bench eval-judge \
-    --dataset [huggingface_dataset_for_judge_eval] \
+    --dataset [dataset_path_for_judge_eval] \
     --judge-evaluations-path [path/to/judge_outputs_being_evaluated]
 ```
 
-*   `dataset`: The Hugging Face dataset specifically designed for evaluating judges (e.g., "ai-coscientis/researcher-ablation-judge-eval").
+*   `dataset`: The dataset path specifically designed for evaluating judges (e.g., "data/ai-coscientis/author-eval").
 *   `judge_evaluations_path`: Path to the directory containing the outputs generated by a judge run (the files that `eval-judge` will score against its ground truth).
 
 This command will output metrics like precision, recall, and F1 score for the judge's performance.

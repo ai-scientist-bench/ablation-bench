@@ -27,7 +27,7 @@ class PlannerSettings(BaseSettings):
         description="Name of the model used to plan (e.g., 'openai/gpt-4'). Any LiteLLM supported model is valid."
     )
     dataset: DatasetForEvaluation = Field(
-        description="Name of the dataset in HuggingFace hub (e.g., 'tau/ablations-bench')"
+        description="Path to dataset for planning (e.g., 'data/ai-coscientist/reviewer-ablation')"
     )
     split: DatasetSplit = Field(default="dev", description="Dataset split to use for planning (e.g., 'dev', 'test')")
     output_dir: Path | None = Field(default=None, description="Path to the directory to save generated plans")
@@ -76,9 +76,14 @@ class Runner:
         return self.planner
 
     def load_data(self) -> Dataset:
-        """Load dataset from Hugging Face."""
+        """Load dataset from local parquet files."""
         self.logger.info(f"Loading dataset {self.settings.dataset.value}, split {self.settings.split.value}")
-        self.dataset = load_dataset(self.settings.dataset.value, split=self.settings.split.value)
+        self.dataset = load_dataset(
+            "parquet", 
+            data_files={self.settings.split.value: f"{self.settings.dataset.value}/{self.settings.split.value}.parquet"}, 
+            split=self.settings.split.value
+        )
+        self.dataset.info.dataset_name = self.settings.dataset.value
         return self.dataset
 
     def run_planning(self) -> None:

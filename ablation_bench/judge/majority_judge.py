@@ -313,10 +313,8 @@ class MajorityJudge(Judge):
 
     def evaluate(self, predictions_path: Path, dataset: Dataset, top_k: int | None) -> EvaluationResult:
         """Evaluate using majority vote from multiple judges."""
-        dataset_full_name = f"talor-abramovich/{dataset.info.dataset_name}"
-
         with_labels = dataset.map(
-            lambda task: self.map_func[dataset_full_name](task, predictions_path, top_k),
+            lambda task: self.map_func[dataset.info.dataset_name](task, predictions_path, top_k),
             remove_columns=[column for column in dataset.column_names if column != "id"],
             desc="Evaluating instances using majority judge",
             num_proc=self.config.parallelism,

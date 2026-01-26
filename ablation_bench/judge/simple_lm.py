@@ -328,9 +328,8 @@ class SimpleLMJudge(Judge):
 
     def evaluate(self, predictions_path: Path, dataset: Dataset, top_k: int | None) -> EvaluationResult:
         """Evaluate predictions against ground truth."""
-        dataset_full_name = f"ai-coscientist/{dataset.info.dataset_name}"
         with_labels = dataset.map(
-            lambda task: self.map_func[dataset_full_name](
+            lambda task: self.map_func[dataset.info.dataset_name](
                 task, predictions_path, top_k, self.map_type[dataset_full_name]
             ),
             remove_columns=[column for column in dataset.column_names if column != "id"],

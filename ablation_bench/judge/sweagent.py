@@ -83,7 +83,7 @@ class SweAgentJudge(Judge):
 
             # Set environment configuration
             d["env"]["deployment"]["type"] = "docker"
-            d["env"]["deployment"]["image"] = "talorabr/ablations-bench:judge"
+            d["env"]["deployment"]["image"] = "ablations-bench:judge"
             d["env"]["deployment"]["docker_args"] = ["-u", "root"]
             d["env"]["repo"]["type"] = "preexisting"
             d["env"]["repo"]["repo_name"] = "repo"
@@ -122,7 +122,7 @@ class SweAgentJudge(Judge):
 
             # Set environment configuration
             d["env"]["deployment"]["type"] = "docker"
-            d["env"]["deployment"]["image"] = "talorabr/ablations-bench:judge"
+            d["env"]["deployment"]["image"] = "ablations-bench:judge"
             paper_path = (Path("data/papers/full") / name).absolute()
             assert paper_path.is_dir(), f"Paper path {paper_path} does not exist."
             d["env"]["deployment"]["docker_args"] = ["-u", "root", "-v", f"{paper_path}:/paper:ro"]
@@ -350,9 +350,8 @@ class SweAgentJudge(Judge):
     ) -> pd.DataFrame:
         """Process predictions and create true/predicted label lists."""
 
-        dataset_full_name = f"ai-coscientist/{dataset.info.dataset_name}"
         with_labels = dataset.map(
-            lambda task: self.map_func[dataset_full_name](task, preds, predictions_path, top_k),
+            lambda task: self.map_func[dataset.info.dataset_name](task, preds, predictions_path, top_k),
             remove_columns=[column for column in dataset.column_names if column != "id"],
             desc="Calculating metrics using SWE agent judge",
             num_proc=self.config["num_workers"],

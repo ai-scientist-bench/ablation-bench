@@ -27,7 +27,7 @@ app = typer.Typer(name="eval-judge", help="Run judge evaluation", no_args_is_hel
 class JudgeEvaluationSettings(BaseSettings):
     """Settings for judge evaluation run."""
 
-    dataset: DatasetForJudgeEvaluation = Field(description="Name of the dataset in HuggingFace hub")
+    dataset: DatasetForJudgeEvaluation = Field(description="Path to dataset for judge evaluation (e.g., 'data/ai-coscientist/reviewer-eval')")
     judge_evaluations_path: Path = Field(description="Path to the directory containing judge evaluation results")
 
     class Config:
@@ -48,9 +48,14 @@ class JudgeEvaluator:
         self.logger = get_logger(__name__)
 
     def load_data(self) -> Dataset:
-        """Load dataset from Hugging Face."""
+        """Load dataset from local parquet files."""
         self.logger.info(f"Loading dataset {self.settings.dataset.value}")
-        self.dataset = load_dataset(self.settings.dataset.value, split="test")
+        self.dataset = load_dataset(
+            "parquet", 
+            data_files={"test": f"{self.settings.dataset.value}/test.parquet"}, 
+            split="test"
+        )
+        self.dataset.info.dataset_name = self.settings.dataset.value
         return self.dataset
 
     def load_ground_truth(self, evaluation_gt: str) -> pd.DataFrame:

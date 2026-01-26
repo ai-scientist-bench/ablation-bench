@@ -1,5 +1,5 @@
 # This is a demo file generated from trajectory file:
-# /home/lab/abramot1/ablations-bench/runs/human_thought_reviewer/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures.traj
+# ./runs/human_thought_reviewer/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures.traj
 # You can use this demo file to replay the actions in the trajectory with run_replay.py.
 # You can edit the content of the actions in this file to modify the replay behavior.
 # NOTICE:
@@ -102,13 +102,13 @@ history:
 replay_config:
   env:
     deployment:
-      image: talorabr/ablations-bench:judge
+      image: ablations-bench:judge
       port:
       docker_args:
         - -u
         - root
         - -v
-        - /home/lab/abramot1/ablations-bench/data/papers/full/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures:/paper:ro
+        - ./data/papers/full/Equivariant_Graph_Self_Attention_Transformer_for_Learning_Higher_Order_Interactions_in_3D_Molecular_Structures:/paper:ro
       startup_timeout: 180.0
       pull: missing
       remove_images: false
@@ -290,15 +290,15 @@ replay_config:
           radare2: \b(?:radare2)\b.*\s+-c\s+.*
           r2: \b(?:radare2)\b.*\s+-c\s+.*
       bundles:
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/registry
+        - path: ../SWE-agent/tools/registry
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/defaults
+        - path: ../SWE-agent/tools/defaults
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/edit_linting
+        - path: ../SWE-agent/tools/edit_linting
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/ablation_submit
+        - path: ../SWE-agent/tools/ablation_submit
           hidden_tools: []
-        - path: /home/lab/abramot1/SWE-agent-enigma/tools/ablation_review_missing
+        - path: ../SWE-agent/tools/ablation_review_missing
           hidden_tools: []
       env_variables:
         WINDOW: 100
