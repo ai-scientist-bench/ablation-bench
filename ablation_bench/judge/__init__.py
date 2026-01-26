@@ -2,9 +2,10 @@
 from enum import Enum
 
 from .abstract import JUDGE_REGISTRY, Judge
+from .majority_judge import MajorityJudge
 from .simple_lm import SimpleLMJudge
 from .sweagent import SweAgentJudge
 
 JudgeType = Enum("JudgeType", {key: key for key in JUDGE_REGISTRY.keys()})
 
-__all__ = [Judge, SimpleLMJudge, SweAgentJudge, JudgeType]
+__all__ = [Judge, MajorityJudge, SimpleLMJudge, SweAgentJudge, JudgeType]

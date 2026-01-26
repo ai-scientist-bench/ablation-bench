@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import random
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,8 @@ from ablation_bench.types import (
     SimpleLMConfig,
     SingleResult,
 )
+
+TEXT_FILE_EXT = ["*.tex", "*.text", ".txt", "*.bib", "*.bbl", "*.md"]
 
 
 @register_judge("simple_lm")
@@ -52,10 +55,12 @@ class SimpleLMJudge(Judge):
         }
 
     @classmethod
-    def from_config(cls, config_path: Path, model_name: str, output_dir: Path, parallelism: int = 1) -> "Judge":
+    def from_config(
+        cls, config_path: Path, model_name: str, reasoning_effort: str | None, output_dir: Path, parallelism: int = 1
+    ) -> "Judge":
         """Create judge from config file."""
         config = yaml.safe_load(config_path.read_text())
-        config["model"] = {"name": model_name}
+        config["model"] = {"name": model_name, "reasoning_effort": reasoning_effort}
         config["output_dir"] = output_dir
         config["parallelism"] = parallelism
         config = SimpleLMConfig(**config)
@@ -83,7 +88,11 @@ class SimpleLMJudge(Judge):
             try:
                 response = ModelResponse(**json.loads(log_path.read_text()))
                 cost = completion_cost(response)
-                return return_class.from_lm_response(response.choices[0].message.content, cost=cost)
+                return return_class.from_lm_response(
+                    response.choices[0].message.content,
+                    cost=cost,
+                    post_process_prediction=kwargs.get("post_process_predictions", None),
+                )
             except Exception as ex:
                 self.logger.warning(f"Failed to read log file {log_path}: {ex}")
 
@@ -95,16 +104,36 @@ class SimpleLMJudge(Judge):
             {"role": "user", "content": formatted_user_prompt},
         ]
 
+        completion_kwargs = {}
+        if self.config.model.reasoning_effort is not None:
+            completion_kwargs["reasoning_effort"] = self.config.model.reasoning_effort
+
         response = completion(
             model=self.config.model.name,
             messages=messages,
             temperature=self.config.model.temperature,
             top_p=self.config.model.top_p,
+            drop_params=True,
+            **completion_kwargs,
         )
         cost = completion_cost(response)
-        response.model = f"openrouter/{response.model}"
         log_path.write_text(json.dumps(response.to_dict(mode="json"), indent=4))
-        return return_class.from_lm_response(response.choices[0].message.content, cost=cost)
+        response_content = response.choices[0].message.content
+        return return_class.from_lm_response(
+            response_content, cost=cost, post_process_prediction=kwargs.get("post_process_predictions", None)
+        )
+
+    def _get_paper_source(self, paper_path: Path) -> str:
+        """Get the source of the paper without ablations."""
+
+        paper_source = ""
+        for extension in TEXT_FILE_EXT:
+            for file_path in paper_path.rglob(extension):
+                paper_source += f'<file name="{file_path.relative_to(paper_path)}">\n'
+                paper_source += file_path.read_text(encoding="utf-8")
+                paper_source += "\n</file>\n"
+
+        return paper_source
 
     def _process_task_researchassist(
         self,
@@ -114,13 +143,53 @@ class SimpleLMJudge(Judge):
     ) -> tuple[list[AblationSuggestionPred], float]:
         """Process a single task and return true/pred labels."""
 
+        ablations_in_paper = [json.dumps(j) for j in json.loads(task["ablations_in_paper"])]
+        random.shuffle(ablations_in_paper)
+        plan = [p for p in plan.split("\n") if p.strip() != ""]
+        random.shuffle(plan)
+        ablations_in_paper = "\n".join(ablations_in_paper)
+        plan = "\n".join(plan)
+        sides = [ablations_in_paper, plan]
+        random.shuffle(sides)
+
+        def post_process_predictions(preds: list[str]) -> list[str]:
+            name_in_paper_side = "A" if sides[0] == ablations_in_paper else "B"
+            name_in_plan_side = "B" if name_in_paper_side == "A" else "A"
+            new_preds = []
+            for pred in preds:
+                pred = json.loads(pred)
+                if pred[f"name_in_{name_in_paper_side}"] is None:
+                    continue
+                if isinstance(pred[f"name_in_{name_in_paper_side}"], list):
+                    for name in pred[f"name_in_{name_in_paper_side}"]:
+                        new_preds.append(
+                            json.dumps(
+                                {
+                                    "name_in_paper": name,
+                                    "name_in_plan": pred[f"name_in_{name_in_plan_side}"],
+                                }
+                            )
+                        )
+                else:
+                    new_preds.append(
+                        json.dumps(
+                            {
+                                "name_in_paper": pred[f"name_in_{name_in_paper_side}"],
+                                "name_in_plan": pred[f"name_in_{name_in_plan_side}"],
+                            }
+                        )
+                    )
+            return new_preds
+
         ablation_preds = self._get_lm_response(
             task,
             return_class,
-            plan=plan,
             paper_title=task["paper_title"],
             abstract=task["paper_abstract"],
-            problem_statement=task["ablations_in_paper"],
+            side_A=sides[0],
+            side_B=sides[1],
+            post_process_predictions=post_process_predictions,
+            paper_source=self._get_paper_source(Path(task["paper_path"])),
         )
 
         return ablation_preds.predictions, ablation_preds.cost
@@ -133,10 +202,15 @@ class SimpleLMJudge(Judge):
     ) -> tuple[list[MissingAblationSuggestionPred], float]:
         """Process a single task for ReviewerAssist mode and return predictions and cost."""
 
-        official_reviews = "\n</official_review>\n\n\n<official_review>\n".join(json.loads(task["review_text"]))
+        reviews = json.loads(task["review_text"])
+        random.shuffle(reviews)
+        official_reviews = "\n</official_review>\n\n\n<official_review>\n".join(reviews)
         if plan == "":
             self.logger.warning(f"Empty plan for task {task.get('id', 'UnknownID')}")
             return [], 0.0
+        plan = [p for p in plan.split("\n") if p.strip() != ""]
+        random.shuffle(plan)
+        plan = "\n".join(plan)
         ablation_preds = self._get_lm_response(
             task,
             return_class,
@@ -144,6 +218,7 @@ class SimpleLMJudge(Judge):
             paper_title=task["paper_title"],
             abstract=task["paper_abstract"],
             official_reviews=official_reviews,
+            paper_source=self._get_paper_source(Path(task["paper_path"])),
         )
 
         return ablation_preds.predictions, ablation_preds.cost
@@ -197,6 +272,9 @@ class SimpleLMJudge(Judge):
         task["precision"] = precision_score(true_labels, pred_labels)
         task["recall"] = recall_score(true_labels, pred_labels)
         task["f1_score"] = f1_score(true_labels, pred_labels)
+        task["ndcg_score"] = self._ndcg_score(
+            true_labels, pred_labels, k=min(len(ablations_in_plan), len(ablations_in_paper))
+        )
         task["cost"] = cost
         return task
 
@@ -262,12 +340,26 @@ class SimpleLMJudge(Judge):
         with_labels_df = with_labels.to_pandas()
         with_labels_df.to_json(self.config.output_dir / "evaluations.json", orient="records", indent=4)
 
-        result = with_labels_df[["precision", "recall", "f1_score", "cost"]].mean()
-        result_std_dev = with_labels_df[["precision", "recall", "f1_score"]].std()
+        scores_to_return = (
+            ["precision", "recall", "f1_score"]
+            if dataset_full_name == DatasetForEvaluation.ReviewerAssist.value
+            else [
+                "precision",
+                "recall",
+                "f1_score",
+                "ndcg_score",
+            ]
+        )
+
+        result = with_labels_df[[*scores_to_return, "cost"]].mean()
+        result_std_dev = with_labels_df[scores_to_return].std()
 
         return EvaluationResult(
             precision=SingleResult(result=result.precision, std_dev=result_std_dev.precision),
             recall=SingleResult(result=result.recall, std_dev=result_std_dev.recall),
             f1_score=SingleResult(result=result.f1_score, std_dev=result_std_dev.f1_score),
+            ndcg_score=SingleResult(result=result.ndcg_score, std_dev=result_std_dev.ndcg_score)
+            if "ndcg_score" in scores_to_return
+            else None,
             cost=result.cost,
         )

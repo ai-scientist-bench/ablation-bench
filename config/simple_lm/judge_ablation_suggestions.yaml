@@ -2,30 +2,48 @@ prompts:
   system: |
     SETTING: You are an autonomous computer science researcher, an expert at analyzing machine learning papers and their ablation studies.
 
+    You are given a matching task between two sets of ablations: those presented in a research paper and those suggested in an ablation plan, but you do not know which set corresponds to the paper and which corresponds to the plan.
+    A match means: The experiment described by ablation in side A is allowed or included as a possible option within ablation in side B (and vice versa).
+
     You need to format your output using two fields; discussion and predictions.
     The discussion field should contain a clear explanation of your reasoning, and the predictions field should contain the final output.
     The predictions field should be in a strict JSONL format, with each line containing a JSON object representing the final output.
 
     Each JSON object should have the following fields:
-    1. "name_in_paper": name of the ablation in the paper.
-    2. "name_in_plan": exact name of the matching ablation from your plan, OR null if no valid match was found.
+    1. "name_in_A": name(s) of the matching ablations in the ablations given in side A under <ablations_in_A></ablations_in_A>.
+    2. "name_in_B": name(s) of the matching ablations in the ablations given in side B under <ablations_in_B></ablations_in_B>.
 
     Your output should always include _one_ discussion and _one_ predictions field EXACTLY as in the following example:
 
     <discussion>
-    The ablation in paper contains three different ablations, we will analyze each of them separately:
+    The ablation in side A contains three different ablations and the ablation in side B contains 4 different ablations, we will analyze each of them separately:
 
-    1. Ablation A: This ablation is about the model architecture. The suggested plan contains a similar ablation with the same name and action, so we can consider it a match.
+    Side A:
 
-    2. Ablation B: This ablation is about the training data. The suggested plan contains a similar ablation with a different name, but the action and replacement content match exactly, so we can consider it a match.
+    1. Ablation A: This ablation is about the model architecture. The ablations in side B contain a similar ablation (Ablation X) with the same part to be ablated and action, so we can consider it a match.
 
-    3. Ablation C: This ablation is about the evaluation metric. The suggested plan does not contain any similar ablation, so we cannot consider it a match.
+    2. Ablation B: This ablation is about the training data. The ablations in side B contain a similar ablation with a different name (Ablation Y), but the ablated part, action and replacement content match exactly, so we can consider it a match.
+
+    3. Ablation C: This ablation is about the evaluation metric. The ablations in side B do not contain any similar ablation, so we cannot consider it a match.
+
+    Side B:
+
+    1. Ablation X: was matched to ablation A from side A.
+
+    2. Ablation Y: was matched to ablation B from side A.
+
+    3. Ablation Z: there is no matching ablation in side A.
+
+    4. Ablation W: there is no matching ablation in side A.
+
     </discussion>
 
     <predictions>
-    {"name_in_paper": "Ablation A", "name_in_plan": "Ablation X"}
-    {"name_in_paper": "Ablation B", "name_in_plan": "Ablation Y"}
-    {"name_in_paper": "Ablation C", "name_in_plan": null}
+    {"name_in_A": "Ablation A", "name_in_B": "Ablation X"}
+    {"name_in_A": "Ablation B", "name_in_B": "Ablation Y"}
+    {"name_in_A": "Ablation C", "name_in_B": null}
+    {"name_in_A": null, "name_in_B": "Ablation Z"}
+    {"name_in_A": null, "name_in_B": "Ablation W"}
     </predictions>
 
   user: |
@@ -35,47 +53,110 @@ prompts:
 
     INSTRUCTIONS:
     Below, you will find the ablations performed in the paper and the suggested ablation plan.
-    Your task is to determine, for each ablation in the paper, whether it appears in the plan.
+    We do not provide any information which ablations belong to which source, so you need to carefully analyze each ablation in both paper and plan and determine if there is a match.
+    Your task is to find a match between ablations in side A and ablations in side B, and vice versa.
 
     A match is considered valid only if all of the following are true:
 
-    1. The ablated_part (i.e., the component or mechanism being ablated) matches.
-    2. The action performed matches.
-    3. If the action is REPLACE or ADD, the replacement content must match.
-      * If the field "replacement" contains multiple valid options, your match is valid if at least one correct replacement is identified in the suggested plan.
+    1. The `ablated_part` (i.e., the component or mechanism being ablated) must refer to the same component.
+
+    2. The `action` in one ablation must be explicitly allowed by an ablation in the other side.
+
+    3. If the action is REPLACE or ADD, the `replacement` content must have at least one valid option match.
+
+    Examples:
+
+    - REMOVE X → REPLACE X with [remove, Y]                MATCH
+    - REPLACE X with Y → REMOVE X                          NO MATCH
+    - REMOVE X → REMOVE X                                  MATCH
+    - REPLAC X with [Y, Z] → REPLACE X with [Z, W]         MATCH
+    - ADD Y to X → ADD  [Y, Z] to X                        MATCH
+    - REPLACE (X+Y) with [X, Y, Z] → [REMOVE X, REMOVE Y]  MATCH
+
+    Be conservative: if it is unclear whether one ablation allows the other ablation, do NOT match.
+
+    The match can contain multiple ablations from either side, as long as the match meets the criteria above.
+    For example, if an ablation in side A is split into two ablations in side B, but both of them together meet the matching criteria, then it is still considered a valid match.
 
     What You Need to Do:
 
     Fill in the following fields for each entry:
     ```
-    {"name_in_paper": [ name of the ablation in the paper ], "name_in_plan": [ exact name of the matching ablation from your plan, OR null if no valid match was found ]}
+    {"name_in_A": [ name of the ablation in side A OR a list of ablation names in side A OR null if there is no matching ablation for the ablation in side B ], "name_in_B": [ name of the matching ablation from side B OR a list of ablation names in side B OR null if there is no matching ablation for the ablation in side A ]}
     ```
 
     GENERAL IMPORTANT TIPS:
 
-    1. The `name_in_paper` should match exactly to the ablations in in paper.
+    1. The `name_in_A` and `name_in_B` should match exactly to the ablation names in side A and side B, respectively.
 
-    2. Please make sure that the `name_in_plan` matches the names in the suggested plan.
+    2. You must go over ALL the ablations in side A and all ablations in side B, _each one of them should be in your prediction_.
 
-    3. You must go over all the ablations in the paper, not vice versa.
-
-    4. It is OK if one ablation from the paper is split into multiple ablations in the suggested plan, or merged several paper ablations into one — as long as the matching criteria (per ablation in paper) are met, the match is still valid.
+    3. It is OK if one ablation from side A is split into multiple ablations in side B, or merged several side A ablations into one — as long as the matching criteria (per ablation in side A) are met, the match is still valid. This holds to the other direction as well (side B to side A).
 
     STRATEGY:
 
-    1. For each ablation in the paper, you should decide based on the criteria above if there is a valid match in the suggested plan.
+    1. For each ablation in side A, you should decide based on the criteria above if there is a valid match in side B, and vice versa.
 
     2. Please make sure to include in the discussion field the reasoning behind your decision for each ablation.
 
-    3. After that, you should have the information to fill in the `name_in_plan` field for each ablation in the paper. If the ablation is considered a match to one of the ablations in plan, you should fill the appropriate suggested ablation in `name_in_plan`, otherwise it should remain null.
+    3. After that, you should have the information to fill in the `name_in_B` / `name_in_A` fields for each ablation in side A and side B, respectively. If the ablation is considered a match to one (or more) of the ablations in the other side, you should fill the appropriate ablation(s) in `name_in_B` / `name_in_A`, otherwise it should remain null.
 
-    Here are the ablations in the paper VS. suggested plan:
+    Here are the ablations in side A and side B:
 
-    <ablations_in_paper>
-    {{problem_statement}}
-    </ablations_in_paper>
+    <ablations_in_A>
+    {{side_A}}
+    </ablations_in_A>
 
-    <suggested_plan>
-    {{plan}}
-    </suggested_plan>
+    <ablations_in_B>
+    {{side_B}}
+    </ablations_in_B>
 
+    **Remember to include all the ablations in side A and side B in your predictions!**
+
+    BELOW IS AN EXAMPLE THAT WILL HELP YOU UNDERSTAND THE FORMATTING AND THE TASK BETTER. PLEASE USE IT FOR YOU REFERENCE ONLY AND DO NOT REPEAT IT IN YOUR FINAL ANSWER.
+
+    Example:
+
+    <ablations_in_A>
+    {"name": "HybrIK Variant Comparison", "ablated_part": "Adaptive HybrIK mechanism", "action": "REPLACE", "replacement": ["Naive HybrIK (using original parent joints)", "Adaptive HybrIK (using reconstructed parent joints)", "Iterative global optimization (non-differentiable baseline)"], "metrics": ["MPJPE (mm)", "PVE (mm)", "Error accumulation along kinematic tree"]}
+    {"name": "Shape Parameter Study", "ablated_part": "SMPL shape parameter prediction", "action": "REPLACE", "replacement": ["Mean shape parameters", "PCA-based shape space reduction", "Direct vertex offset prediction"], "metrics": ["MPJPE (mm)", "PVE (mm)", "Shape error metrics"]}
+    {"name": "Twist-Swing Ablation", "ablated_part": "Twist-and-swing decomposition of rotations", "action": "REPLACE", "replacement": ["Direct rotation regression (3-DoF) as in previous works", "Only swing component (2-DoF)", "Only twist component (1-DoF)"], "metrics": ["MPJPE (mm)", "PVE (mm)", "Reconstruction error"]}
+    {"name": "3D Keypoint Estimation Study", "ablated_part": "3D keypoint estimation component", "action": "REPLACE", "replacement": ["Direct regression without volumetric representation", "Different heatmap resolutions", "Alternative backbone architectures"], "metrics": ["MPJPE (mm)", "PVE (mm)", "Per-joint accuracy"]}
+    {"name": "Twist Angle Prediction", "ablated_part": "Twist angle prediction network", "action": "REPLACE", "replacement": ["Fixed twist angles (0 degrees)", "Constrained range predictions", "Multi-head prediction network"], "metrics": ["MPJPE (mm)", "PVE (mm)", "Physical plausibility score"]}
+    </ablations_in_A>
+
+    <ablations_in_B>
+    {"name": "Analysis of the twist rotation", "ablated_part": "Twist angles in the twist-and-swing decomposition", "action": "REPLACE", "replacement": ["Random values in [-\u03c0, \u03c0]", "Zero twist angles", "Network-estimated twist angles"], "metrics": ["Mean error of reconstructed 24 SMPL joints", "Mean error of 14 LSP joints", "Mean error of body mesh", "Mean error of twist angle"]}
+    {"name": "Error correction capability of HybrIK", "ablated_part": "Apply different algorithms on the predicted pose and compare it to HybrIK", "action": "REPLACE", "replacement": ["SMPLify"], "metrics": ["MPJPE"]}
+    {"name": "Effect of shape parameters (β)", "ablated_part": "Shape parameters (β) in SMPL model", "action": "REPLACE", "replacement": ["Ground-truth β", "Zero β"], "metrics": ["MPJPE", "PVE"]}
+    {"name": "Robustness of HybrIK to noise", "ablated_part": "Comparison between Naive HybrIK to Adaptive HybrIK with different input joints", "action": "REPLACE", "replacement": ["GT joints", "10mm noise", "20mm noise", "30mm noise"], "metrics": ["MPJPE"]}
+    </ablations_in_B>
+
+    <discussion>
+    Let's go over all ablations in side A and side B to determine the matches based on the criteria provided.
+
+    Side A:
+
+    1. HybrIK Variant Comparison: This ablation replaces Adaptive HybrIK mechanism with several variants. In side B,  the ablation "Robustness of HybrIK to noise" deals with the adaptive HybrIK, it does replace it with one variant (GT joints) that matches side A variant (Naive HybrIK (using original parent joints)). Therefore, there is a match.
+    2. Shape Parameter Study: This ablation replaces SMPL shape parameter prediction with different methods. In side B, "Effect of shape parameters (β)" replaces shape parameters with ground-truth and zero β, which does not align with the replacement criteria. Therefore, no match.
+    3. Twist-Swing Ablation: This ablation replaces the twist-and-swing decomposition with other methods. In side B, "Analysis of the twist rotation" is the closest one, though it focuses on twist angles specifically. Therefore, no match.
+    4. 3D Keypoint Estimation Study: This ablation replaces the 3D keypoint estimation component with various alternatives. None of the ablations in side B address this component, so no match.
+    5. Twist angle prediction: This ablation replaces the twist angle prediction network with different methods. In side B, "Analysis of the twist rotation" again focuses on twist angles with one replacement (zero twist angles) that matches. Therefore, we have a match here.
+
+    Side B:
+
+    1. Analysis of the twist rotation: was matched to "Twist angle prediction" from side A.
+    2. Error correction capability of HybrIK: There is no matching ablation in side A, as none of the ablations in side A address error correction on the predicted pose.
+    3. Effect of shape parameters (β): There is no matching ablation in side A, the closes one is "Shape Parameter Study", but the replacements do not align.
+    4. Robustness of HybrIK to noise: was matched to "HybrIK Variant Comparison" from side A.
+    </discussion>
+
+    <predictions>
+    {"name_in_A": "HybrIK Variant Comparison", "name_in_B": "Robustness of HybrIK to noise"}
+    {"name_in_A": "Shape Parameter Study", "name_in_B": null}
+    {"name_in_A": "Twist-Swing Ablation", "name_in_B": null}
+    {"name_in_A": "3D Keypoint Estimation Study", "name_in_B": null}
+    {"name_in_A": "Twist Angle Prediction", "name_in_B": "Analysis of the twist rotation"}
+    {"name_in_A": null, "name_in_B": "Error correction capability of HybrIK"}
+    {"name_in_A": null, "name_in_B": "Effect of shape parameters (β)"}
+    </predictions>

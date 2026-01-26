@@ -38,7 +38,7 @@ class AblationSuggestionPred(BaseModel):
     """
 
     name_in_paper: str
-    name_in_plan: str | None = None
+    name_in_plan: list[str] | str | None = None
 
     @property
     def label(self) -> bool:
@@ -59,14 +59,19 @@ class PredResponse(BaseModel):
     cost: float
 
     @classmethod
-    def from_lm_response(cls, response: str, cost: float) -> "PredResponse":
+    def from_lm_response(
+        cls, response: str, cost: float, post_process_prediction: Callable[[list], list] | None = None
+    ) -> "PredResponse":
         """Parse the LM response into an PredResponse."""
         discussion_match = re.search(r"<discussion>(.*?)</discussion>", response, re.DOTALL)
         discussion = discussion_match.group(1).strip() if discussion_match else ""
         predictions_match = re.search(r"<predictions>(.*?)</predictions>", response, re.DOTALL)
-        predictions = [
-            cls.pred_class_type(**json.loads(pred)) for pred in predictions_match.group(1).strip().split("\n") if pred
-        ]
+        predictions = (
+            [pred for pred in predictions_match.group(1).strip().split("\n") if pred] if predictions_match else []
+        )
+        if post_process_prediction is not None:
+            predictions = post_process_prediction(predictions)
+        predictions = [cls.pred_class_type(**json.loads(pred)) for pred in predictions]
         return cls(discussion=discussion, predictions=predictions, cost=cost)
 
 
@@ -132,6 +137,7 @@ class ModelConfig(BaseModel):
     name: str
     temperature: float = Field(0.0, ge=0.0, le=1.0)
     top_p: float = Field(1.0, ge=0.0, le=1.0)
+    reasoning_effort: Literal["low", "medium", "high"] | None = None
 
 
 class SimpleLMConfig(BaseModel):
@@ -158,6 +164,13 @@ class AblationPlanSimpleLMConfig(SimpleLMConfig):
     """
     num_ablations: int = Field(5, ge=1)
 
+class MajorityJudgeConfig(BaseModel):
+    """Configuration for the Majority judge."""
+
+    model: ModelConfig
+    judge_output_dirs: list[str] = Field(..., description="List of paths to judge output directories")
+    output_dir: Path
+    parallelism: int = Field(1, ge=1)
 class SingleResult(BaseModel):
     """Represents a single numerical result, potentially with standard deviation.
 
@@ -182,6 +195,7 @@ class EvaluationResult(BaseModel):
     precision: SingleResult
     recall: SingleResult
     f1_score: SingleResult
+    ndcg_score: SingleResult | None = None
     cost: float = 0.0
 
 

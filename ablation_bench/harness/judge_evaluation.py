@@ -104,7 +104,7 @@ class JudgeEvaluator:
         if pred_df is not None:
             merged_df = gt_df.merge(pred_df, on=NonPredictedField[self.settings.dataset], how="left")
             gt_labels = merged_df["gt_label"].tolist()
-            pred_labels = merged_df["pred_label"].tolist()
+            pred_labels = merged_df["pred_label"].replace({float("nan"): False}).tolist()
             result = EvaluationResult(
                 precision=SingleResult(result=precision_score(gt_labels, pred_labels, zero_division=0)),
                 recall=SingleResult(result=recall_score(gt_labels, pred_labels, zero_division=0)),
@@ -121,8 +121,9 @@ class JudgeEvaluator:
         """Run the complete evaluation process."""
         self.load_data()
 
-        with_labels = self.dataset.map(self.evaluate_instance, desc="Evaluating judge")
-        with_labels = with_labels.to_pandas()
+        with_labels = self.dataset.map(
+            self.evaluate_instance, desc="Evaluating judge", load_from_cache_file=False
+        ).to_pandas()
 
         result = with_labels[["precision", "recall", "f1_score", "cost"]].mean()
         result_std_dev = with_labels[["precision", "recall", "f1_score"]].std()

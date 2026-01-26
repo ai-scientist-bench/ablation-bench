@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal, get_args
 
 import typer
 from datasets import Dataset, load_dataset
@@ -36,6 +36,9 @@ class EvaluationSettings(BaseSettings):
         "If None, all the generated plans will be evaluated",
     )
     output_dir: Path | None = Field(default=None, description="Path to the directory to save evaluation results")
+    reasoning_effort: Literal["low", "medium", "high"] | None = Field(
+        default=None, description="Reasoning effort level for the judge model"
+    )
     parallelism: int = Field(default=1, description="Number of parallel workers to use for evaluation")
 
     class Config:
@@ -74,6 +77,7 @@ class Evaluator:
             model_name=self.settings.model_name,
             parallelism=self.settings.parallelism,
             output_dir=self.settings.output_dir,
+            reasoning_effort=self.settings.reasoning_effort,
         )
         return self.judge
 
@@ -95,12 +99,19 @@ class Evaluator:
         results = self.judge.evaluate(
             dataset=self.dataset, predictions_path=self.settings.generated_plans_path, top_k=self.settings.top_k
         )
+		
+		ndcg_info = (
+        	f"NDCG: {eval_result.ndcg_score.result:.2f} ± {eval_result.ndcg_score.std_dev:.2f}, "
+        	if eval_result.ndcg_score
+        	else ""
+    	)
 
         self.logger.info(
             f"Evaluation completed. "
             f"Precision: {results.precision.result:.2f} ± {results.precision.std_dev:.2f}, "
             f"Recall: {results.recall.result:.2f} ± {results.recall.std_dev:.2f} ,"
             f"F1: {results.f1_score.result:.2f} ± {results.f1_score.std_dev:.2f}, "
+			f"{ndcg_info}"
             f"Cost: {results.cost:.2f}"
         )
 
@@ -122,6 +133,10 @@ def evaluate(
     output_dir: Annotated[
         Path | None, typer.Option(help=get_field_description(EvaluationSettings, "output_dir"))
     ] = None,
+    reasoning_effort: Annotated[
+        Enum("ReasoningEffort", {key: key for key in get_args(Literal["low", "medium", "high"])}) | None,
+        typer.Option(help=get_field_description(EvaluationSettings, "reasoning_effort")),
+    ] = None,
 ) -> None:
     """Run ablation evaluation with the specified settings."""
     settings = EvaluationSettings(
@@ -134,6 +149,7 @@ def evaluate(
         top_k=top_k,
         parallelism=parallelism,
         output_dir=output_dir,
+        reasoning_effort=reasoning_effort.value if reasoning_effort is not None else None,
     )
     evaluator = Evaluator(settings)
     evaluator.run_evaluation()

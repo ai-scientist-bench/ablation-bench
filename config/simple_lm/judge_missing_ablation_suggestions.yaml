@@ -29,9 +29,9 @@ prompts:
     </discussion>
 
     <predictions>
-    {"name_in_paper": "Ablation A", "appears_in_review": true}
-    {"name_in_paper": "Ablation B", "appears_in_review": false}
-    {"name_in_paper": "Ablation C", "appears_in_review": false}
+    {"name_in_plan": "Ablation A", "appears_in_review": true}
+    {"name_in_plan": "Ablation B", "appears_in_review": false}
+    {"name_in_plan": "Ablation C", "appears_in_review": false}
     </predictions>
 
   user: |
@@ -39,16 +39,24 @@ prompts:
     ABSTRACT:
     {{abstract}}
 
+    The paper source is provided below, after all of the instructions.
+    You should interpret the review(s) of the paper in the context of the paper source, which may contain important information about the ablation studies performed in the paper, and can help you understand better the ablation suggestions in the review.
+
     INSTRUCTIONS:
     Below, you will find an official review(s) of the paper referring to the ablation studies performed in the paper, alongside the suggested ablation plan.
     Your task is to determine, for each ablation in the suggested ablation plan, whether it appears in the review(s).
 
-    A match is considered valid only if all of the following are true:
+    An ablation in plan is considered to appear in the review if all of the following are true:
 
-    1. The ablated_part (i.e., the component or mechanism being ablated) matches exactly to the review text ablation suggestion.
+    1. The ablated_part (i.e., the component or mechanism being ablated) matches exactly to one of the ablation suggestions in the review text.
+
     2. The action performed matches exactly (if exist in the review text ablation suggestion).
+
     3. If the action is REPLACE or ADD, the replacement content must match (if exist in the review text ablation suggestion).
       * If the field "replacement" contains multiple valid options, your match is valid if at least one correct replacement is identified in the suggested plan.
+
+    Be conservative: if it is unclear whether one ablation matches another, do not match.
+    However, because the review text may be incomplete, an ablation is still considered a match if the ablated_part matches exactly (Criterion 1) and the action or replacement information (Criteria 2 and 3) are not mentioned in the review text.
 
     What You Need to Do:
 
@@ -65,12 +73,15 @@ prompts:
 
     3. Please note that all reviews information is in the following text, so you should base your decision only using the information below.
 
-    4. You should treat the review _ONLY FOR NEW ABLATION SUGGESTIONS_, and not for the existing ones or other aspects of the paper or the review.
+    4. You should treat the review _ONLY FOR NEW ABLATION SUGGESTIONS_, and not for the existing ones or other aspects of the paper or the review. For example, the review text may contain suggestions for other experiments which are NOT ablations.
 
+    5. You are given the paper source - use it to better understand the context of the review and the ablation suggestions.
+       For example, the paper source contains already the ablation studies performed in the paper, which can help you understand better the ablation suggestions in the review.
 
     STRATEGY:
 
-    1. You should extract from each review the missing ablation that the reviewer suggests to add (if any exists). A missing ablation refers to an experiment that the reviewer believes should have been conducted, in which a specific component, module, feature, or design choice is removed, replaced, or altered in order to assess its impact on the model’s performance.
+    1. You should extract from each review the missing ablation that the reviewer suggests to add.
+       A missing ablation refers to an experiment that the reviewer believes should have been conducted, in which a specific component, module, feature, or design choice is removed, replaced, or altered in order to assess its impact on the model's performance.
        The review must clearly indicate that such an ablation study is missing or should be added.
 
     2. After that, you should have the information to fill in the `appears_in_review` field for each ablation in the suggested plan. If the ablation is considered a match to one of the reviews, you should set `appears_in_review` to true, otherwise false.
@@ -84,4 +95,83 @@ prompts:
     <suggested_plan>
     {{problem_statement}}
     </suggested_plan>
+
+    <paper_source>
+    {{paper_source}}
+    </paper_source>
+
+    BELOW IS AN EXAMPLE THAT WILL HELP YOU UNDERSTAND THE FORMATTING AND THE TASK BETTER. PLEASE USE IT FOR YOU REFERENCE ONLY AND DO NOT REPEAT IT IN YOUR FINAL ANSWER.
+
+    Example:
+
+    <official_review>
+    **summary**: This paper proposes EG-SAT, an equivariant graph self-attention transformer for modeling 3D molecular structures, introducing Attention-based Atom-Centered Symmetry Functions (AACSFs) to capture higher-order geometric interactions. The authors showed the performance of proposed model on QM9 and MD17 datasets. While the paper presents some interesting ideas around combining attention mechanisms with ACSFs, there are several critical limitations that need to be addressed.
+
+    **soundness**: 1
+
+    **presentation**: 3
+
+    **contribution**: 2
+
+    **strengths**: 1. The integration of attention mechanisms with ACSFs is interesting.
+    2. the framework is applicable to multiple molecular property prediction tasks
+    3. the paper discusses the theoretical foundation of symmetry and group representation in detail
+
+    **weaknesses**: 1. The paper omits several recent works in molecular property prediction, making the comparisons less relevant.
+    2. The authors didn't conduct ablation studies to evaluate the contribution of different components in the framework.
+    3. There is no computational efficiency analysis, what's more, the claims of improved scalability are unsupported by any experiments.
+    4. The motivation for incorporating angular information lacks clear examples where angular information provides benefits.
+    5. There's no proof that the attention mechanism preserves chemical validity
+
+    **questions**: 1. Can the authors provide experiment for the claimed scalability improvements over traditional ACSFs?
+    2. How does the computational complexity scale with the number of atoms and chemical elements compared to existing methods?
+    3. What is the memory footprint of the attention mechanism for larger molecular systems?
+    4. Can the authors provide ablation studies showing the specific benefits of angular information integration?
+    5. How sensitive is the model to hyperparameter choices, particularly the attention and gating parameters?
+
+    **flag_for_ethics_review**: ['No ethics review needed.']
+
+    **rating**: 3
+
+    **confidence**: 4
+
+    **code_of_conduct**: Yes
+    </official_review>
+
+    <suggested_plan>
+    {"name": "Remove Radial AACSFs", "ablated_part": "Radial Atom-Centered Symmetry Functions (AACSFs)", "action": "REMOVE", "metrics": ["MAE for quantum chemical properties"]}
+    {"name": "Remove Angular AACSFs", "ablated_part": "Angular Atom-Centered Symmetry Functions (AACSFs)", "action": "REMOVE", "metrics": ["MAE for quantum chemical properties"]}
+    {"name": "Replace Gating Mechanism", "ablated_part": "Gating mechanism in AACSFs", "action": "REPLACE", "replacement": ["Simple summation", "Weighted average"], "metrics": ["MAE for quantum chemical properties"]}
+    </suggested_plan>
+
+    <paper_source>
+    ...
+    [REDACTED FOR BREVITY]
+    </paper_source>
+
+    <discussion>
+    The review text contains several weaknesses and questions.
+    While in the weaknesses section, the reviewer mentions the lack of ablation studies, it does not specify which ablations are missing.
+    However, in the questions section, the reviewer explicitly asks for ablation studies showing the specific benefits of angular information integration.
+    The reviewer also suggests the need for experiments to validate the claimed scalability improvements, which could imply a missing ablation, but since we are being conservative we won't consider this an ablation suggestion.
+
+    Therefore, the ablation suggestions that can be extracted from the review text are:
+
+    1. Angular information integration ablation: The reviewer explicitly requests ablation studies to demonstrate the benefits of incorporating angular information, indicating that this is a missing ablation.
+
+    Now let's analyze the ablation in the suggested plan:
+
+    1. Remove Radial ACSFs: This ablation focuses on removing the radial component of ACSFs. The review does not mention anything about radial ACSFs, so this is not a match.
+
+    2. Remove Angular ACSFs: This ablation involves removing the angular component of ACSFs. This directly corresponds to the reviewer's request for ablation studies on angular information integration.
+       Although the reviewer does not mention the specific action of removal, the ablated part matches exactly, so we consider this a match.
+
+    3. Replace Gating Mechanism: This ablation suggests replacing the gating mechanism in ACSFs with alternatives like simple summation or weighted average. The review does not mention anything about the gating mechanism, so this is not a match.
+    </discussion>
+
+    <predictions>
+    {"name_in_plan": "Remove Radial AACSFs", "appears_in_review": false}
+    {"name_in_plan": "Remove Angular AACSFs", "appears_in_review": true}
+    {"name_in_plan": "Replace Gating Mechanism", "appears_in_review": false}
+    </predictions>
 

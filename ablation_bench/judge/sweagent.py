@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import random
 import subprocess
 from collections import defaultdict
 from pathlib import Path
@@ -42,7 +43,14 @@ class SweAgentJudge(Judge):
         }
 
     @classmethod
-    def from_config(cls, config_path: Path, model_name: str, output_dir: Path, parallelism: int = 1) -> "Judge":
+    def from_config(
+        cls,
+        config_path: Path,
+        model_name: str,
+        output_dir: Path,
+        parallelism: int = 1,
+        reasoning_effort: str | None = None,
+    ) -> "Judge":
         """Create a judge instance from a config file.
 
         Args:
@@ -56,7 +64,10 @@ class SweAgentJudge(Judge):
         """
         config = yaml.safe_load(config_path.read_text())
         config["output_dir"] = output_dir.absolute()
-        config["agent"]["model"] = {"name": model_name}
+        completion_kwargs = {"drop_params": True}
+        if reasoning_effort:
+            completion_kwargs["reasoning_effort"] = reasoning_effort
+        config["agent"]["model"] = {"name": model_name, "completion_kwargs": completion_kwargs, "delay": 0.0}
         config["num_workers"] = parallelism
         return cls(config=config)
 
@@ -78,15 +89,25 @@ class SweAgentJudge(Judge):
             d["env"]["repo"]["repo_name"] = "repo"
 
             # Set problem statement
+            plan = (plans_path / f"{name}.jsonl").read_text()
+            plan = [p for p in plan.split("\n") if p.strip() != ""]
+            random.shuffle(plan)
+            plan = "\n".join(plan)
+            ablations_in_paper = json.loads(task["ablations_in_paper"])
+            random.shuffle(ablations_in_paper)
+            ablations_in_paper = "\n".join([json.dumps(ablation) for ablation in ablations_in_paper])
+            sides = [ablations_in_paper, plan]
+            random.shuffle(sides)
+
             d["problem_statement"]["type"] = "text"
             d["problem_statement"]["text"] = task["ablations_in_paper"]
             d["problem_statement"]["id"] = name
             d["problem_statement"]["extra_fields"] = {
                 "paper_title": task["paper_title"],
-                "plan": (plans_path / f"{name}.jsonl").read_text(),
                 "abstract": task["paper_abstract"],
+                "side_A": sides[0],
+                "side_B": sides[1],
             }
-
             for_swe_agent.append(json.loads(json.dumps(d)))
 
         return for_swe_agent
@@ -102,19 +123,25 @@ class SweAgentJudge(Judge):
             # Set environment configuration
             d["env"]["deployment"]["type"] = "docker"
             d["env"]["deployment"]["image"] = "talorabr/ablations-bench:judge"
-            d["env"]["deployment"]["docker_args"] = ["-u", "root"]
+            paper_path = (Path("data/papers/full") / name).absolute()
+            assert paper_path.is_dir(), f"Paper path {paper_path} does not exist."
+            d["env"]["deployment"]["docker_args"] = ["-u", "root", "-v", f"{paper_path}:/paper:ro"]
             d["env"]["repo"]["type"] = "preexisting"
             d["env"]["repo"]["repo_name"] = "repo"
 
             # Set problem statement
             d["problem_statement"]["type"] = "text"
-            d["problem_statement"]["text"] = (plans_path / f"{name}.jsonl").read_text()
+            plan = (plans_path / f"{name}.jsonl").read_text()
+            plan = [p for p in plan.split("\n") if p.strip() != ""]
+            random.shuffle(plan)
+            plan = "\n".join(plan)
+            d["problem_statement"]["text"] = plan
             d["problem_statement"]["id"] = name
+            reviews = json.loads(task["review_text"])
+            random.shuffle(reviews)
             d["problem_statement"]["extra_fields"] = {
                 "paper_title": task["paper_title"],
-                "official_reviews": "\n</official_review>\n\n\n<official_review>\n".join(
-                    json.loads(task["review_text"])
-                ),
+                "official_reviews": "\n</official_review>\n\n\n<official_review>\n".join(reviews),
                 "abstract": task["paper_abstract"],
             }
 
@@ -175,7 +202,7 @@ class SweAgentJudge(Judge):
             return task
 
         # Parse predictions for this task
-        model_patch = preds["task_id"]["model_patch"]
+        model_patch = preds[task_id]["model_patch"]
         if model_patch.startswith("diff --git"):
             try:
                 model_patch = subprocess.check_output(
@@ -183,24 +210,55 @@ class SweAgentJudge(Judge):
                 ).decode()
             except Exception as ex:
                 self.logger.error(f"Error applying patch for task {task_id}: {ex}")
-                model_patch = "\n".join(
-                    [
-                        AblationSuggestionPred(name_in_paper=ablation["name"]).model_dump_json()
-                        for ablation in ablations_in_paper
-                    ]
+                model_patch = (
+                    "\n".join(
+                        [
+                            AblationSuggestionPred(name_in_paper=ablation["name"]).model_dump_json()
+                            for _, ablation in ablations_in_paper.iterrows()
+                        ]
+                    )
+                    .replace("name_in_paper", "name_in_A")
+                    .replace("name_in_plan", "name_in_B")
                 )
 
-        model_patch = pd.read_json(io.StringIO(model_patch), lines=True).replace({float("nan"): None}).drop_duplicates()
+        try:
+            model_patch = pd.read_json(io.StringIO(model_patch), lines=True).replace({float("nan"): None})
+            model_patch = model_patch.loc[model_patch.astype(str).drop_duplicates().index]
+            name_in_a = set(model_patch["name_in_A"].explode().dropna().to_list())
+            name_in_b = set(model_patch["name_in_B"].explode().dropna().to_list())
+            if name_in_a <= (set(ablations_in_paper["name"].to_list())):
+                model_patch = model_patch.rename(columns={"name_in_A": "name_in_paper", "name_in_B": "name_in_plan"})
+            elif name_in_b <= (set(ablations_in_paper["name"].to_list())):
+                model_patch = model_patch.rename(columns={"name_in_B": "name_in_paper", "name_in_A": "name_in_plan"})
+            else:
+                raise ValueError("Could not determine name mapping between paper and plan ablations.")
+        except Exception as ex:
+            print(f"Error processing model patch JSON: {ex}, creating an empty model patch")
+            model_patch = pd.read_json(
+                io.StringIO(
+                    "\n".join(
+                        [
+                            AblationSuggestionPred(name_in_paper=ablation["name"]).model_dump_json()
+                            for _, ablation in ablations_in_paper.iterrows()
+                        ]
+                    )
+                ),
+                lines=True,
+            ).replace({float("nan"): None})
+
+        model_patch = model_patch[model_patch["name_in_paper"].notna()]
+        model_patch = model_patch.explode("name_in_paper")
+        model_patch = model_patch[model_patch["name_in_paper"].notna()]
         model_patch.to_json(self.config["output_dir"] / f"{task_id}.jsonl", orient="records", lines=True)
         ablation_preds = [AblationSuggestionPred(**pred) for pred in model_patch.to_dict(orient="records")]
 
         true_labels, pred_labels = self._get_labels(
             predictions=ablation_preds,
-            ablations_in_paper=[  # Corrected to pass list of strings
+            ablations_in_paper=[
                 str(ablation.get("name"))
                 for ablation in ablations_in_paper.replace({float("nan"): None}).to_dict(orient="records")
             ],
-            ablations_in_plan=[  # Corrected to pass list of strings
+            ablations_in_plan=[
                 str(ablation.get("name"))
                 for ablation in ablations_in_plan.replace({float("nan"): None}).to_dict(orient="records")
             ],
@@ -256,11 +314,9 @@ class SweAgentJudge(Judge):
                     ]
                 )
 
-        model_patch_df = (
-            pd.read_json(io.StringIO(model_patch), lines=True).replace({float("nan"): None}).drop_duplicates()
-        )
-        model_patch_df.to_json(self.config["output_dir"] / f"{task_id}.jsonl", orient="records", lines=True)
-        ablation_preds = [MissingAblationSuggestionPred(**pred) for pred in model_patch_df.to_dict(orient="records")]
+        model_patch = pd.read_json(io.StringIO(model_patch), lines=True).replace({float("nan"): None}).drop_duplicates()
+        model_patch.to_json(self.config["output_dir"] / f"{task_id}.jsonl", orient="records", lines=True)
+        ablation_preds = [MissingAblationSuggestionPred(**pred) for pred in model_patch.to_dict(orient="records")]
 
         if top_k:
             ablation_preds = ablation_preds[:top_k]

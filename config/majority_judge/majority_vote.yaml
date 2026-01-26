@@ -1,0 +1,4 @@
+judge_output_dirs:
+  - /home/lab/abramot1/ablations-bench/runs/eval_new/researcher/simple_lm/claude-3-5-sonnet/claude-3-5-sonnet
+  - /home/lab/abramot1/ablations-bench/runs/eval_new/researcher/simple_lm/claude-3-5-sonnet/gpt-4o
+  - /home/lab/abramot1/ablations-bench/runs/eval_new/researcher/simple_lm/claude-3-5-sonnet/o3-mini-high

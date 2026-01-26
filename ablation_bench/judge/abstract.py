@@ -1,9 +1,11 @@
 """Judge module for ablations-bench."""
 
+import itertools
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from datasets import Dataset
 
 from ablation_bench.types import AblationSuggestionPred, EvaluationResult
@@ -72,7 +74,14 @@ class Judge(ABC):
         for ablation in ablations_in_paper:
             pred_labels.append(
                 any(
-                    pred.name_in_paper == ablation and pred.label and pred.name_in_plan in ablations_in_plan
+                    pred.name_in_paper == ablation
+                    and pred.label
+                    and all(
+                        name_in_plan in ablations_in_plan
+                        for name_in_plan in (
+                            pred.name_in_plan if isinstance(pred.name_in_plan, list) else [pred.name_in_plan]
+                        )
+                    )
                     for pred in predictions
                 )
             )
@@ -81,12 +90,46 @@ class Judge(ABC):
         additional_plan_ablations = len(
             list(
                 set(ablation for ablation in ablations_in_plan)
-                - set(pred.name_in_plan for pred in predictions if pred.name_in_plan is not None)
+                - set(
+                    pred.name_in_plan
+                    for pred in predictions
+                    if pred.name_in_plan is not None and not isinstance(pred.name_in_plan, list)
+                )
+                - set(
+                    list(
+                        itertools.chain.from_iterable(
+                            pred.name_in_plan for pred in predictions if isinstance(pred.name_in_plan, list)
+                        )
+                    )
+                )
             )
         )
         true_labels.extend([False] * additional_plan_ablations)
         pred_labels.extend([True] * additional_plan_ablations)
         return true_labels, pred_labels
+
+    @staticmethod
+    def _ndcg_score(true_labels: list[bool], pred_labels: list[bool], k: int) -> float:
+        """Compute NDCG score.
+
+        Args:
+            true_labels: List of true labels
+            pred_labels: List of predicted labels
+            k: Rank position to evaluate
+
+        Returns:
+            NDCG score
+        """
+        true_labels = true_labels[:k]
+        pred_labels = pred_labels[:k]
+
+        def dcg(labels: list[bool]) -> float:
+            return sum(int(label) / np.log2(i + 2) for i, label in enumerate(labels))
+
+        idcg = dcg(true_labels)
+        if idcg == 0:
+            return 0.0
+        return dcg(pred_labels) / idcg
 
     @abstractmethod
     def evaluate(self, predictions_path: Path, dataset: Dataset, top_k: int | None) -> EvaluationResult:
