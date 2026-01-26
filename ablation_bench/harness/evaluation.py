@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal, get_args
 
 import typer
+from enum import Enum
 from datasets import Dataset, load_dataset
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -99,19 +100,19 @@ class Evaluator:
         results = self.judge.evaluate(
             dataset=self.dataset, predictions_path=self.settings.generated_plans_path, top_k=self.settings.top_k
         )
-		
-		ndcg_info = (
-        	f"NDCG: {eval_result.ndcg_score.result:.2f} ± {eval_result.ndcg_score.std_dev:.2f}, "
-        	if eval_result.ndcg_score
-        	else ""
-    	)
+        
+        ndcg_info = (
+            f"NDCG: {results.ndcg_score.result:.2f} ± {results.ndcg_score.std_dev:.2f}, "
+            if results.ndcg_score
+            else ""
+        )
 
         self.logger.info(
             f"Evaluation completed. "
             f"Precision: {results.precision.result:.2f} ± {results.precision.std_dev:.2f}, "
             f"Recall: {results.recall.result:.2f} ± {results.recall.std_dev:.2f} ,"
             f"F1: {results.f1_score.result:.2f} ± {results.f1_score.std_dev:.2f}, "
-			f"{ndcg_info}"
+            f"{ndcg_info}"
             f"Cost: {results.cost:.2f}"
         )
 
