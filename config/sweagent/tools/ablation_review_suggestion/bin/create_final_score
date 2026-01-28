@@ -9,16 +9,7 @@ from registry import registry
 
 
 def create_final_score_jsonl() -> None:
-    ablations = json.loads(registry.get("PROBLEM_STATEMENT"))
-    final_score = []
-    for ablation in ablations:
-        final_score.append(
-            {
-                "name_in_paper": ablation["name"],
-                "name_in_plan": None,
-            }
-        )
-    Path("/repo/final_score.jsonl").write_text("\n".join(json.dumps(score) for score in final_score))
+    Path("/repo/final_score.jsonl").write_text("\n")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,0 @@
-judge_output_dirs:
-  - results/eval/author/simple_lm/claude-3-5-sonnet/claude-3-5-sonnet
-  - results/eval/author/simple_lm/claude-3-5-sonnet/gpt-4o
-  - results/eval/author/simple_lm/claude-3-5-sonnet/o3-mini-high

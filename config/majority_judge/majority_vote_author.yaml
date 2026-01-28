@@ -1,0 +1,4 @@
+judge_output_dirs:
+  - ./runs/eval/author/simple_lm/o3-mini-high/anthropic/claude-3.5-sonnet
+  - ./runs/eval/author/simple_lm/o3-mini-high/openai/gpt-4o
+  - ./runs/eval/author/simple_lm/o3-mini-high/openai/o3-mini-high
