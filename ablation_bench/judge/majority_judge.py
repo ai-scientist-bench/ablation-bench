@@ -313,7 +313,7 @@ class MajorityJudge(Judge):
 
     def evaluate(self, predictions_path: Path, dataset: Dataset, top_k: int | None) -> EvaluationResult:
         """Evaluate using majority vote from multiple judges."""
-        dataset_full_name = f"talor-abramovich/{dataset.info.dataset_name}"
+        dataset_full_name = f"ai-coscientist/{dataset.info.dataset_name}"
 
         with_labels = dataset.map(
             lambda task: self.map_func[dataset_full_name](task, predictions_path, top_k),

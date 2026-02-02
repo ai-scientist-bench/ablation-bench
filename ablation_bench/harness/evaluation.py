@@ -27,7 +27,7 @@ class EvaluationSettings(BaseSettings):
         description="Name of the model used to evaluate (e.g., 'openai/gpt-4o'). Any LiteLLM supported model is valid."
     )
     dataset: DatasetForEvaluation = Field(
-        description="Name of the dataset in HuggingFace hub (e.g., 'tau/ablations-bench')"
+        description="Name of the dataset in HuggingFace hub (e.g., 'ai-coscientist/researcher-ablation-bench')"
     )
     split: DatasetSplit = Field(default="dev", description="Dataset split to use for evaluation (e.g., 'dev', 'test')")
     generated_plans_path: Path = Field(description="Path to the directory containing generated ablation plans")

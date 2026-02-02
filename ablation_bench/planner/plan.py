@@ -27,7 +27,7 @@ class PlannerSettings(BaseSettings):
         description="Name of the model used to plan (e.g., 'openai/gpt-4'). Any LiteLLM supported model is valid."
     )
     dataset: DatasetForEvaluation = Field(
-        description="Name of the dataset in HuggingFace hub (e.g., 'tau/ablations-bench')"
+        description="Name of the dataset in HuggingFace hub (e.g., 'ai-coscientist/reviewer-ablation')"
     )
     split: DatasetSplit = Field(default="dev", description="Dataset split to use for planning (e.g., 'dev', 'test')")
     output_dir: Path | None = Field(default=None, description="Path to the directory to save generated plans")

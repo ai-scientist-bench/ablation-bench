@@ -15,7 +15,7 @@ RUN git config --global user.name "Your Name"
 RUN git config --global user.email "you@example.com"
 RUN mkdir -p repo && cd /repo && git init && touch empty && git add empty && git commit -m "init"
 
-ADD . /paper
+COPY --from=paper . /paper
 RUN chmod -R a-w /paper
 
 SHELL ["/bin/bash", "-c"]

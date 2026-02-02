@@ -27,7 +27,7 @@ app = typer.Typer(name="eval-judge", help="Run judge evaluation", no_args_is_hel
 class JudgeEvaluationSettings(BaseSettings):
     """Settings for judge evaluation run."""
 
-    dataset: DatasetForJudgeEvaluation = Field(description="Name of the dataset in HuggingFace hub")
+    dataset: DatasetForJudgeEvaluation = Field(description="Name of the dataset in HuggingFace hub (e.g., 'ai-coscientist/researcher-ablation-judge-eval'")
     judge_evaluations_path: Path = Field(description="Path to the directory containing judge evaluation results")
 
     class Config:

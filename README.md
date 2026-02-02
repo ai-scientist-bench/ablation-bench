@@ -84,7 +84,7 @@ Planners and judges in AblationBench are configured using YAML files. You will n
 ## 🏃🏾 Quick Start
 
 
-### 👩‍🔬 ResearcherAblationBench
+### 👩‍🔬 AuthorAblation
 
 Here's a quick start example of how to generate an ablation plan using the LM-Planner, then evaluate it using the LMJudge:
 
@@ -100,23 +100,38 @@ Here's a quick start example of how to generate an ablation plan using the LM-Pl
         --num-ablations 5 \
         --output-dir "./runs/plan/researcher/simple_lm/o3-mini-high"
     ```
-    This will generate ablation plans for all the papers in the test set of ResearcherAblationBench. Each plan will contain up to 5 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/researcher/simple_lm/o3-mini-high` directory.
+    This will generate ablation plans for all the papers in the test set of AuthorAblation. Each plan will contain up to 5 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/author/simple_lm/o3-mini-high` directory.
 
 2.  **Run the evaluation command**:
     ```bash
-    ablation-bench eval \
-        --judge simple_lm \
-        --judge-config config/simple_lm/judge_ablation_suggestions.yaml \
-        --model-name "openrouter/openai/gpt-4o" \
-        --dataset "ai-coscientist/researcher-ablation-bench" \
-        --split "test" \
-        --generated-plans-path "./runs/researcher/plan/simple_lm/o3-mini-high" \
-        --parallelism 5 \
-        --output-dir "./runs/eval/researcher/simple_lm/o3-mini-high"
-    ```
-    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of ResearcherAblationBench. The command will save evaluation results to the `./runs/eval/researcher/simple_lm/o3-mini-high` directory, and print them to the screen as well.
+    # Run the evaluation on all of the judges separately
+    for judge_model in "openai/gpt-4o" "anthropic/claude-3.5-sonnet" "openai/o3-mini-high"
+    do
+        ablation-bench eval \
+            --judge simple_lm \
+            --judge-config config/simple_lm/judge_ablation_suggestions.yaml \
+            --model-name "openrouter/${judge_model}" \
+            --dataset ai-coscientist/researcher-ablation-bench \
+            --split "test" \
+            --generated-plans-path "./runs/author/plan/simple_lm/o3-mini-high" \
+            --parallelism 5 \
+            --output-dir "./runs/eval/author/simple_lm/o3-mini-high/${judge_model}"
+    done
 
-### 🔍 ReviewerAblationBench
+    # Run the majority voting to get the final result
+    ablation-bench eval \
+        --judge majority_judge \
+        --judge-config config/majority_judge/majority_vote_author.yaml \
+        --model-name "openrouter/dummy" \
+        --dataset ai-coscientist/researcher-ablation-bench \
+        --split "test" \
+        --generated-plans-path "./runs/author/plan/simple_lm/o3-mini-high" \
+        --parallelism 5 \
+        --output-dir "./runs/eval/author/simple_lm/o3-mini-high/majority_vote"
+    ```
+    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of AuthorAblation. The command will save evaluation results to the `./runs/eval/author/simple_lm/o3-mini-high` directory, and print them to the screen as well.
+
+### 🔍 ReviewerAblation
 
 Here's a quick start example of how to generate a missing ablation plan using the LM-Planner, then evaluate it using the LMJudge:
 
@@ -131,21 +146,37 @@ Here's a quick start example of how to generate a missing ablation plan using th
         --num-ablations 2 \
         --output-dir "./runs/plan/reviewer/simple_lm/o3-mini-high"
     ```
-    This will generate ablation plans for all the papers in the test set of ReviewerAblationBench. Each plan will contain up to 2 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/reviewer/simple_lm/o3-mini-high` directory.
+    This will generate ablation plans for all the papers in the test set of ReviewerAblation. Each plan will contain up to 2 generated ablation studies using o3-mini-high. The command will save these to the `./runs/plan/reviewer/simple_lm/o3-mini-high` directory.
 
 2.  **Run the evaluation command**:
     ```bash
+    # Run the evaluation on all of the judges separately
+    for judge_model in "openai/gpt-4o" "anthropic/claude-3.5-sonnet" "openai/o3-mini-high"
+    do
+        ablation-bench eval \
+            --judge simple_lm \
+            --judge-config config/simple_lm/judge_missing_ablation_suggestions.yaml \
+            --model-name "openrouter/${judge_model}$" \
+            --dataset ai-coscientist/reviewer-ablation-bench \
+            --split "test" \
+            --generated-plans-path "./runs/plan/reviewer/simple_lm/o3-mini-high" \
+            --parallelism 5 \
+            --output-dir "./runs/eval/reviewer/simple_lm/o3-mini-high/${judge_model}"
+    done
+    
+
+    # Run the majority voting to get the final result
     ablation-bench eval \
-        --judge simple_lm \
-        --judge-config config/simple_lm/judge_missing_ablation_suggestions.yaml \
-        --model-name "openrouter/anthropic/claude-3.5-sonnet" \
-        --dataset "ai-coscientist/reviewer-ablation-bench" \
+        --judge majority_judge \
+        --judge-config config/majority_judge/majority_vote_reviewer.yaml \
+        --model-name "openrouter/dummy$" \
+        --dataset ai-coscientist/reviewer-ablation-bench \
         --split "test" \
         --generated-plans-path "./runs/plan/reviewer/simple_lm/o3-mini-high" \
         --parallelism 5 \
-        --output-dir "./runs/eval/reviewer/simple_lm/o3-mini-high"
+        --output-dir "./runs/eval/reviewer/simple_lm/o3-mini-high/majority_vote"
     ```
-    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of ResearcherAblationBench. The command will save evaluation results to the `./runs/eval/reviewer/simple_lm/o3-mini-high` directory, and print them to the screen as well.
+    This will evaluate ablation plans generated in the previous step, for all the papers in the test set of ReviewerAblation. The command will save evaluation results to the `./runs/eval/reviewer/simple_lm/o3-mini-high` directory, and print them to the screen as well.
 
 
 ## 🫀 Core Components
@@ -181,6 +212,10 @@ Judges are used to evaluate the quality of ablation plans or to perform other as
     *   Can perform complex evaluations by running the agent in a Docker environment.
     *   Configuration involves SWE-agent specific parameters in its YAML file and requires Docker.
     *   Configuration files for the Agent-Planner can be found in `config/sweagent/judge_*.yaml`
+*   **MajorityJudge**:
+    *   An ensemble of models for more reliable evaluation. 
+    *   Used mainly to reduce intra-model (also called self-model) bias.
+    *   Configuration files for the MajorityJudge can be found in `config/majority_judge/*.yaml`.
 
 Both planners and judges are registered and can be selected via the CLI using their respective names (e.g., `simple_lm`, `sweagent`).
 
@@ -230,7 +265,7 @@ ablation-bench eval \
     --output-dir [path/to/evaluation_output_directory]
 ```
 
-*   `judge_type`: `simple_lm` or `sweagent`.
+*   `judge_type`: `simple_lm`, `sweagent` or `majority_judge`.
 *   `judge_config`: Path to the YAML configuration for the chosen judge.
 *   `model_name`: Identifier for the LM to be used by the judge.
 *   `dataset`: The Hugging Face dataset to use.
