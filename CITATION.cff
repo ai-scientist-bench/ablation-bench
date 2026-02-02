@@ -1,0 +1,58 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: AblationBench
+message: >-
+  If you use this dataset, please cite it using the metadata
+  from this file.
+type: article
+authors:
+  - given-names: Talor
+    family-names: Abramovich
+    email: talora1@mail.tau.ac.il
+    affiliation: Tel Aviv University
+    orcid: 'https://orcid.org/0009-0006-4855-2172'
+  - given-names: Gal
+    family-names: Chechik
+    affiliation: 'Bar Ilan University, NVIDIA Research IL'
+identifiers:
+  - type: url
+    value: 'https://arxiv.org/abs/2507.08038'
+repository-artifact: >-
+  https://huggingface.co/collections/ai-coscientist/ablationbench
+abstract: >-
+  Language model agents are increasingly used to automate
+  scientific research, yet evaluating their scientific
+  contributions remains a challenge.
+
+  A key mechanism to obtain such insights is through
+  ablation experiments. To this end, we introduce
+  AblationBench, a benchmark suite for evaluating agents on
+  ablation planning tasks in empirical AI research. It
+  includes two tasks: AuthorAblation, which helps authors
+  propose ablation experiments based on a method section and
+  contains 83 instances, and ReviewerAblation, which helps
+  reviewers find missing ablations in a full paper and
+  contains 350 instances. For both tasks, we develop
+  LM-based judges that serve as an automatic evaluation
+  framework. Our experiments with frontier LMs show that
+  these tasks remain challenging, with the best-performing
+  LM system identifying only 38\% of the original ablations
+  on average, below human-level performance.
+
+  We observe an inverse performance trend between the author
+  and reviewer tasks, which we attribute to differences in
+  model grounding.
+
+  Lastly, we analyze the limitations of current LMs on these
+  tasks, and find that chain-of-thought prompting
+  outperforms an agent-based approach.
+keywords:
+  - benchmark
+  - LM
+  - ablation
+  - research
+  - empirical research
+  - AI
+license: MIT
