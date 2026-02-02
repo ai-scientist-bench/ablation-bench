@@ -6,7 +6,7 @@ title: AblationBench
 message: >-
   If you use this dataset, please cite it using the metadata
   from this file.
-type: article
+type: dataset
 authors:
   - given-names: Talor
     family-names: Abramovich
